@@ -30,12 +30,12 @@ private slots:
 												 SLOT(doRemoteUpdateTips(Git::Repository::UpdateTips, const QString &, const QString &)));
 		Q_ASSERT(connectResult);
 
-		repository.SetRespURL(QString("https://github.com/Mashatan/CustomCombobox"));
-		repository.SetAuthor("Ali Mashatan");
-		repository.SetEmail("ali@ethdev.com");
+		repository.setRepoURL(QString("https://github.com/Mashatan/CustomCombobox"));
+		repository.setAuthor("Ali Mashatan");
+		repository.setEmail("ali@ethdev.com");
 		
 		system("rmdir /s /q c:\\temp\\test");
-		QVERIFY(repository.Clone(QString("c:\\temp\\test")));
+		QVERIFY(repository.clone(QString("c:\\temp\\test")));
 
 		//system("echo \"this is a test\" >> c:\\temp\\test\\gpl01.txt");
 		
@@ -46,7 +46,7 @@ private slots:
 		//QVERIFY(gitClient.Revert());
 		//QVERIFY(gitClient.Fetch());
 
-		repository.Close();
+		repository.close();
 	  
 	}
 

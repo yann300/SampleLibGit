@@ -4,10 +4,11 @@
 
 #pragma  once
 
-#include <git2.h>
 #include <QString>
 #include <QObject>
 #include <QStringList>
+
+#include <StatusFile.h>
 
 namespace Git
 {
@@ -21,53 +22,61 @@ namespace Git
 			upUpdate,
 		};
 
-		Repository();
+		Repository(QObject* _parent = NULL);
 		virtual ~Repository();
 		/// Return email of the user
-		QString GetEmail();
+		QString getEmail();
 		/// Return author 
-		QString GetAuthor();
+		QString getAuthor();
 		/// Return repository path
-		QString GetRespPath();
+		QString getRespPath();
 		/// Return repository URL
-		QString GetRespURL();
+		QString getRespURL();
 
-		void SetEmail(const QString &_value);
-		void SetAuthor(const QString &_value);
-		void SetRespURL(const QString &_value);
+		void setEmail(const QString &_value);
+		void setAuthor(const QString &_value);
+		void setRepoURL(const QString &_value);
 
 		/// Open repository by path
-		bool Open(const QString &_repoPath);
+		bool open(const QString &_repoPath);
 		/// Clone repository in a new path
-		bool Clone(QString &_repoPath);
+		bool clone(const QString &_repoPath);
 		/// Close current repository
-		void Close();
+		void close();
 
 		/// Adding a filename to current branch
-		bool AddFilenameToRepo(const QString &_filename);
+		bool addFilenameToRepo(const QString &_filename);
 		/// Remove a filename to current branch
-		bool RemoveFilenameFromRepo(const QString &_filename);
+		bool removeFilenameFromRepo(const QString &_filename);
 		/// Commit the files with a message
-		bool Commit(QString &_commitMessage);
+		bool commit(const QString &_commitMessage);
 		/// Receiving latest the changes from git server (whitout merge)
-		bool Fetch();
+		bool fetch();
 		/// Update remote refs
-		bool Push();
+		bool push();
 		/// Merge the retrieved branch heads into current branch
-		bool Merge();
-		bool Revert();
+		bool merge();
+#if 0
+		bool revert();
+#endif
+		bool getStausFiles();
 
 	signals:
-		void onError(qint32 error, const QString &message, const QString &hint);
-		void onRemoteCredential(QString& username, QString& password);
-		void onRemoteTransfer(quint32 totalObjects,
-			quint32 indexedObjects,
-			quint32 receivedObjects,
-			quint64 receivedBytes);
-		void onRemoteProgress(const QString &message);
-		void onRemoteFinishDownloading();
-		void onRemoteFinishIndexing();
-		void onRemoteUpdateTips(Git::Repository::UpdateTips updatetips, const QString &from, const QString &to);
+		void errorMessage(qint32 _error, const QString &_message, const QString &_hint);
+		void remoteCredential(QString& _username, QString& _password);
+		void remoteTransfer(quint32 _totalObjects,
+			quint32 _indexedObjects,
+			quint32 _receivedObjects,
+			quint64 _receivedBytes);
+		void remoteProgress(const QString &_message);
+		void remoteFinishDownloading();
+		void remoteFinishIndexing();
+		void remoteUpdateTips(Git::Repository::UpdateTips _updatetips, const QString &_from, const QString &_to);
+		void updateFileStatus();
+		void changeRepository();
+
+	protected:
+		QList<StatusFile*> m_statusFiles;
 
 	private:
 		
@@ -79,7 +88,7 @@ namespace Git
 		QString m_repoPath;
 		QString m_repoURL;
 
-		void SignalError(qint32 _error, QString &_hint = QString());
+		void signalError(qint32 _error, QString &_hint = QString());
 	};
 }
 Q_DECLARE_METATYPE(Git::Repository::UpdateTips)

@@ -4,6 +4,9 @@
 // Author: Ali Mashatan
 
 #include <QDateTime>
+#include <QDebug>
+#include <git2.h>
+
 #include <Repository.h>
 #include <Private/RepositoryPrivate.h>
 
@@ -40,7 +43,8 @@ git_commit * Repository::RepositoryPrivate::GetLastCommit()
 //********************** End private
 
 
-Repository::Repository()
+Repository::Repository(QObject* _parent /*= NULL*/)
+	:QObject(_parent)
 {
 	m_repositoryPrivate = new RepositoryPrivate();
 }
@@ -50,33 +54,35 @@ Repository::~Repository()
 	delete m_repositoryPrivate;
 }
 
-bool Repository::Open(const QString &_repoPath)
+bool Repository::open(const QString &_repoPath)
 {
 	int error;
 	if (error = git_repository_open(&m_repositoryPrivate->m_ptrRepo, _repoPath.toStdString().c_str()) != 0)
 	{
-		SignalError(error);
+		signalError(error);
 		return false;
 	}
 	m_repoPath = _repoPath;
+	emit changeRepository();
 	return true;
 }
 
-void Repository::Close()
+void Repository::close()
 {
 	if (m_repositoryPrivate->m_ptrRepo)
 	{
 		git_repository_free(m_repositoryPrivate->m_ptrRepo);
 		m_repositoryPrivate->m_ptrRepo = NULL;
+		m_statusFiles.clear();
+		emit updateFileStatus();
 	}
 }
 
-bool Repository::Clone(QString &_repoPath)
+bool Repository::clone(const QString &_repoPath)
 {
 	RepositoryPrivate::CommonData commonData = { { 0 } };
 	commonData.ptrRepo = this;
 	commonData.ptrPrivateRepo = m_repositoryPrivate;
-	Close();
 	git_clone_options cloneOptions = GIT_CLONE_OPTIONS_INIT;
 	git_checkout_options checkoutOptions = GIT_CHECKOUT_OPTIONS_INIT;
 	int error;
@@ -90,13 +96,13 @@ bool Repository::Clone(QString &_repoPath)
 		RepositoryPrivate::CommonData *commonData = (RepositoryPrivate::CommonData*)payload;
 		if (commonData)
 		{
-			emit commonData->ptrRepo->onRemoteTransfer(stats->total_objects, stats->indexed_objects,
+			emit commonData->ptrRepo->remoteTransfer(stats->total_objects, stats->indexed_objects,
 													  stats->received_objects, stats->received_bytes);
 			if (stats->received_objects == stats->total_objects)
-				emit commonData->ptrRepo->onRemoteFinishDownloading();
+				emit commonData->ptrRepo->remoteFinishDownloading();
 
 			if (stats->indexed_objects == stats->total_objects)
-				emit commonData->ptrRepo->onRemoteFinishIndexing();
+				emit commonData->ptrRepo->remoteFinishIndexing();
 		}
 		return 0;
 	};
@@ -105,49 +111,52 @@ bool Repository::Clone(QString &_repoPath)
 		RepositoryPrivate::CommonData *commonData = (RepositoryPrivate::CommonData*)payload;
 		QString username;
 		QString password;
-		emit commonData->ptrRepo->onRemoteCredential(username, password);
+		emit commonData->ptrRepo->remoteCredential(username, password);
 		return git_cred_userpass_plaintext_new(out, username.toStdString().c_str(), password.toStdString().c_str());
 	};
 	cloneOptions.remote_callbacks.payload = &commonData;
-
-	if (error = git_clone(&m_repositoryPrivate->m_ptrRepo, m_repoURL.toStdString().c_str(), _repoPath.toStdString().c_str(), &cloneOptions) < 0)
+	git_repository * ptrRepo;
+	if (error = git_clone(&ptrRepo, m_repoURL.toStdString().c_str(), _repoPath.toStdString().c_str(), &cloneOptions) < 0)
 	{
-		SignalError(error);
+		signalError(error);
 		return false;
 	}
+	close();
+	m_repositoryPrivate->m_ptrRepo = ptrRepo;
 	m_repoPath = _repoPath;
+	emit changeRepository();
 	return true;
 }
 
-void Repository::SignalError(qint32 _error, QString &_hint /*= QString()*/)
+void Repository::signalError(qint32 _error, QString &_hint /*= QString()*/)
 {
 	const git_error *err = giterr_last();
 	if (err)
-		emit onError(err->klass, QString(err->message), _hint);
+		emit errorMessage(err->klass, QString(err->message), _hint);
 	else
-		emit onError(_error, QString(), _hint);
+		emit errorMessage(_error, QString(), _hint);
 }
 
-bool Repository::AddFilenameToRepo(const QString &_filename)
+bool Repository::addFilenameToRepo(const QString &_filename)
 {
 	git_index *index;
 	int error;
 
 	if (error = git_repository_index(&index, m_repositoryPrivate->m_ptrRepo) < 0)
 	{
-		SignalError(error);
+		signalError(error);
 		return false;
 	}
 
 	if (error = git_index_add_bypath(index, _filename.toStdString().c_str()))
 	{
-		SignalError(error);
+		signalError(error);
 		return false;
 	}
 
 	if (error = git_index_write(index) < 0)
 	{
-		SignalError(error);
+		signalError(error);
 		return false;
 	}
 
@@ -155,7 +164,7 @@ bool Repository::AddFilenameToRepo(const QString &_filename)
 	return true;
 }
 
-bool Repository::RemoveFilenameFromRepo(const QString &_filename)
+bool Repository::removeFilenameFromRepo(const QString &_filename)
 {
 	git_oid treeID;
 	git_index *index;
@@ -163,26 +172,26 @@ bool Repository::RemoveFilenameFromRepo(const QString &_filename)
 
 	if (error = git_repository_index(&index, m_repositoryPrivate->m_ptrRepo))
 	{
-		SignalError(error);
+		signalError(error);
 		return false;
 	}
 
 	if (error = git_index_remove_bypath(index, _filename.toStdString().c_str()))
 	{
-		SignalError(error);
+		signalError(error);
 		return false;
 	}
 
 	if (error = git_index_write_tree(&treeID, index))
 	{
-		SignalError(error);
+		signalError(error);
 		return false;
 	}
 	git_index_free(index);
 	return true;
 }
 
-bool Repository::Commit(QString &_commitMessage)
+bool Repository::commit(const QString &_commitMessage)
 {
 	git_index *index;
 	git_oid treeID, commitID;
@@ -200,13 +209,13 @@ bool Repository::Commit(QString &_commitMessage)
 
 	if (error = git_repository_index(&index, m_repositoryPrivate->m_ptrRepo))
 	{
-		SignalError(error);
+		signalError(error);
 		return false;
 	}
 
 	if (error = git_index_write_tree(&treeID, index))
 	{
-		SignalError(error);
+		signalError(error);
 		return false;
 	}
 
@@ -214,7 +223,7 @@ bool Repository::Commit(QString &_commitMessage)
 
 	if (error = git_tree_lookup(&tree, m_repositoryPrivate->m_ptrRepo, &treeID))
 	{
-		SignalError(error);
+		signalError(error);
 		return false;
 	}
 	parent = m_repositoryPrivate->GetLastCommit();
@@ -223,18 +232,19 @@ bool Repository::Commit(QString &_commitMessage)
 				&commitID, m_repositoryPrivate->m_ptrRepo, "HEAD", author, author,
 				NULL, _commitMessage.toUtf8(), tree, 1, parent))
 	{
-		SignalError(error);
+		signalError(error);
 		return false;
 	}
 
 	git_tree_free(tree);
 	git_signature_free(author);
-
+	qDebug() << "finish commit";
+	emit updateFileStatus();
 	return true;
 }
 
 
-bool Repository::Fetch()
+bool Repository::fetch()
 {
 	RepositoryPrivate::CommonData commonData = { { 0 } };
 	git_remote *remote = NULL;
@@ -243,7 +253,7 @@ bool Repository::Fetch()
 	int error;
 	if (error = git_remote_lookup(&remote, m_repositoryPrivate->m_ptrRepo, "origin"))
 	{
-		SignalError(error);
+		signalError(error);
 		return false;
 	}
 	commonData.ptrRepo = this;
@@ -259,21 +269,21 @@ bool Repository::Fetch()
 		QString message;
 		if (git_oid_iszero(a))
 		{
-			emit commonData->ptrRepo->onRemoteUpdateTips(Repository::upNew, QString(),QString(bStr));
+			emit commonData->ptrRepo->remoteUpdateTips(Repository::upNew, QString(),QString(bStr));
 		}
 		else {
 			git_oid_fmt(aStr, a);
 			aStr[GIT_OID_HEXSZ] = '\0';
-			emit commonData->ptrRepo->onRemoteUpdateTips(Repository::upUpdate, QString(bStr), QString(bStr));
+			emit commonData->ptrRepo->remoteUpdateTips(Repository::upUpdate, QString(bStr), QString(bStr));
 		}
-		emit commonData->ptrRepo->onRemoteProgress(message);
+		emit commonData->ptrRepo->remoteProgress(message);
 		return 0;
 	};
 
 	callbacks.sideband_progress = [](const char *str, int len, void *payload) ->int
 	{
 		RepositoryPrivate::CommonData *commonData = (RepositoryPrivate::CommonData*)payload;
-		commonData->ptrRepo->onRemoteProgress(QString::fromUtf8(str, len));
+		commonData->ptrRepo->remoteProgress(QString::fromUtf8(str, len));
 		return 0;
 	};
 
@@ -282,7 +292,7 @@ bool Repository::Fetch()
 		RepositoryPrivate::CommonData *commonData = (RepositoryPrivate::CommonData*)payload;
 		QString username;
 		QString password;
-		emit commonData->ptrRepo->onRemoteCredential(username, password);
+		emit commonData->ptrRepo->remoteCredential(username, password);
 		return git_cred_userpass_plaintext_new(out, username.toStdString().c_str(), password.toStdString().c_str());
 	};
 
@@ -293,13 +303,13 @@ bool Repository::Fetch()
 
 	if (error = git_remote_connect(remote, GIT_DIRECTION_FETCH))
 	{
-		SignalError(error);
+		signalError(error);
 		return false;
 	}
 
 	if (error = git_remote_download(remote, NULL))
 	{
-		SignalError(error);
+		signalError(error);
 		return false;
 	}
 
@@ -307,15 +317,16 @@ bool Repository::Fetch()
 
 	if (error = git_remote_update_tips(remote, NULL))
 	{
-		SignalError(error);
+		signalError(error);
 		return false;
 	}
 
 	git_remote_free(remote);
+	emit changeRepository();
 	return true;
 }
 
-bool Repository::Push()
+bool Repository::push()
 {
 	RepositoryPrivate::CommonData commonData = { { 0 } };
 	commonData.ptrRepo = this;
@@ -326,7 +337,7 @@ bool Repository::Push()
 	int error;
 	if (error = git_remote_lookup(&remote, m_repositoryPrivate->m_ptrRepo, "origin"))
 	{
-		SignalError(error);
+		signalError(error);
 		return false;
 	}
 
@@ -341,20 +352,20 @@ bool Repository::Push()
 		QString message;
 		if (git_oid_iszero(a))
 		{
-			emit commonData->ptrRepo->onRemoteUpdateTips(Repository::upNew, QString(),QString(bStr));
+			emit commonData->ptrRepo->remoteUpdateTips(Repository::upNew, QString(),QString(bStr));
 		}
 		else {
 			git_oid_fmt(aStr, a);
 			aStr[GIT_OID_HEXSZ] = '\0';
-			emit commonData->ptrRepo->onRemoteUpdateTips(Repository::upUpdate, QString(bStr), QString(bStr));
+			emit commonData->ptrRepo->remoteUpdateTips(Repository::upUpdate, QString(bStr), QString(bStr));
 		}
-		emit commonData->ptrRepo->onRemoteProgress(message);
+		emit commonData->ptrRepo->remoteProgress(message);
 		return 0;
 	};
 	callbacks.sideband_progress = [](const char *str, int len, void *payload) ->int
 	{
 		RepositoryPrivate::CommonData *commonData = (RepositoryPrivate::CommonData*)payload;
-		commonData->ptrRepo->onRemoteProgress(QString::fromUtf8(str, len));
+		commonData->ptrRepo->remoteProgress(QString::fromUtf8(str, len));
 		return 0;
 	};
 	callbacks.credentials = [](git_cred **out, const char * url, const char * username_from_url, unsigned int allowed_types, void * payload) -> int
@@ -362,7 +373,7 @@ bool Repository::Push()
 		RepositoryPrivate::CommonData *commonData = (RepositoryPrivate::CommonData*)payload;
 		QString username;
 		QString password;
-		emit commonData->ptrRepo->onRemoteCredential(username, password);
+		emit commonData->ptrRepo->remoteCredential(username, password);
 		return git_cred_userpass_plaintext_new(out, username.toStdString().c_str(), password.toStdString().c_str());
 	};
 	callbacks.payload = &commonData;
@@ -372,7 +383,7 @@ bool Repository::Push()
 
 	if (error = git_remote_connect(remote, GIT_DIRECTION_PUSH))
 	{
-		SignalError(error);
+		signalError(error);
 		return false;
 	}
 
@@ -383,7 +394,7 @@ bool Repository::Push()
 
 	if (error = git_remote_upload(remote, NULL, &options))
 	{
-		SignalError(error);
+		signalError(error);
 		return false;
 	}
 
@@ -391,7 +402,7 @@ bool Repository::Push()
 
 	if (error = git_remote_update_tips(remote, NULL))
 	{
-		SignalError(error);
+		signalError(error);
 		return false;
 	}
 
@@ -399,7 +410,7 @@ bool Repository::Push()
 	return true;
 }
 
-bool Repository::Merge()
+bool Repository::merge()
 {
 	int error;
 	std::vector<git_annotated_commit*> commits;
@@ -428,52 +439,152 @@ bool Repository::Merge()
 	{
 		git_annotated_commit_free(commit);
 	}
+	emit changeRepository();
 	return true;
 }
 
-bool Repository::Revert()
+#if 0
+bool Repository::revert()
 {
 	git_commit *commit = m_repositoryPrivate->GetLastCommit();
 	int error;
 	if (error = git_revert(m_repositoryPrivate->m_ptrRepo, commit, NULL))
 	{
-		SignalError(error);
+		signalError(error);
 		return false;
 	}
 	return true;
 }
+#endif
 
-QString Repository::GetEmail()
+bool Repository::getStausFiles()
+{
+	//clear list of status
+	foreach(StatusFile * statusFile, m_statusFiles)
+		delete statusFile;
+	m_statusFiles.clear();
+
+	git_status_options statusopt = GIT_STATUS_OPTIONS_INIT;
+	statusopt.flags = GIT_STATUS_OPT_INCLUDE_UNTRACKED |
+			GIT_STATUS_OPT_INCLUDE_UNMODIFIED |
+			GIT_STATUS_OPT_UPDATE_INDEX |
+			GIT_STATUS_OPT_RECURSE_UNTRACKED_DIRS |
+			GIT_STATUS_OPT_RENAMES_HEAD_TO_INDEX |
+			GIT_STATUS_OPT_SORT_CASE_SENSITIVELY;
+
+	int error;
+	if (!m_repositoryPrivate->m_ptrRepo)
+	{
+		emit errorMessage(-1, tr("Reposetry is not opened"), QString());
+		return false;
+	}
+	git_status_list *status;
+	if (error = git_status_list_new(&status, m_repositoryPrivate->m_ptrRepo, &statusopt))
+	{
+		signalError(error);
+		return false;
+	}
+	size_t statusCount = git_status_list_entrycount(status);
+	qDebug() << "C counter : " << statusCount;
+	for (int i = 0; i < statusCount; i++) {
+
+		const git_status_entry *s = git_status_byindex(status, i);
+		StatusFile::StausType statusType = StatusFile::Unknown;
+
+		switch (s->status)
+		{
+		case GIT_STATUS_CURRENT:
+			statusType = StatusFile::Current;
+		break;
+		case GIT_STATUS_WT_NEW:
+			statusType = StatusFile::Untracked;
+		break;
+		case GIT_STATUS_WT_DELETED:
+			statusType = StatusFile::WTDeleted;
+		break;
+		case GIT_STATUS_INDEX_NEW:
+			statusType = StatusFile::New;
+		break;
+		case GIT_STATUS_INDEX_MODIFIED:
+			statusType = StatusFile::Modified;
+		break;
+		case GIT_STATUS_INDEX_DELETED:
+			statusType = StatusFile::Deleted;
+		break;
+		case GIT_STATUS_INDEX_RENAMED:
+			statusType = StatusFile::Renamed;
+		break;
+		case GIT_STATUS_INDEX_TYPECHANGE:
+			statusType = StatusFile::TypeChange;
+		break;
+		default:
+			statusType = StatusFile::Unknown;
+		}
+
+		if (s->head_to_index)
+		{
+			const char * newPath = s->head_to_index->new_file.path;
+			if ( newPath )
+			{
+				const char * oldPath = s->head_to_index->old_file.path;
+				if (oldPath )
+				{
+					m_statusFiles << new StatusFile(this,
+												QString(oldPath),
+												QString(newPath),
+												statusType);
+				}
+				else
+					m_statusFiles << new StatusFile(this,
+													QString(newPath),
+													QString(newPath),
+													statusType);
+			}
+		} else if (	s->index_to_workdir )
+		{
+			m_statusFiles << new StatusFile(this,
+										QString(s->index_to_workdir->old_file.path),
+										QString(s->index_to_workdir->old_file.path),
+										statusType);
+		}
+	}
+
+	git_status_list_free(status);
+	emit updateFileStatus();
+	return true;
+}
+
+QString Repository::getEmail()
 {
 	return m_email;
 }
 
-QString Repository::GetAuthor()
+QString Repository::getAuthor()
 {
 	return m_author;
 }
 
-QString Repository::GetRespPath()
+QString Repository::getRespPath()
 {
 	return m_repoPath;
 }
 
-QString Repository::GetRespURL()
+QString Repository::getRespURL()
 {
 	return m_repoURL;
 }
 
-void Repository::SetRespURL(const QString &_value)
+void Repository::setRepoURL(const QString &_value)
 {
 	m_repoURL = _value;
 }
 
-void Repository::SetAuthor(const QString &_value)
+void Repository::setAuthor(const QString &_value)
 {
 	m_author = _value;
 }
 
-void Repository::SetEmail(const QString &_value)
+void Repository::setEmail(const QString &_value)
 {
 	m_email = _value;
 }
