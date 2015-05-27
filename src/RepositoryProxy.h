@@ -32,7 +32,8 @@ namespace Git
 		}
 		Q_INVOKABLE bool open(QString const& _path)
 		{
-			return Repository::open(_path);
+			bool result = Repository::open(_path);
+			return result;
 		}
 		Q_INVOKABLE void close()
 		{
@@ -62,10 +63,29 @@ namespace Git
 		{
 			return Repository::getStausFiles();
 		}
-
+		Q_INVOKABLE void setAddToggle(QString _filename, bool _toggle)
+		{
+			foreach(StatusFile *statusFile, m_statusFiles)
+			{
+				if (statusFile->newPath() == _filename)
+				{
+					statusFile->setAddToggle(_toggle);
+				}
+			}
+		}
+		Q_INVOKABLE void setRemoveToggle(QString _filename, bool _toggle)
+		{
+			foreach(StatusFile *statusFile, m_statusFiles)
+			{
+				if (statusFile->oldPath() == _filename)
+				{
+					statusFile->setRemoveToggle(_toggle);
+				}
+			}
+		}
 		QQmlListProperty<StatusFile> statusFiles() const
 		{
-			qDebug() << m_statusFiles.count();
+			//qDebug() << m_statusFiles.count();
 			return QQmlListProperty<StatusFile>(const_cast<RepositoryProxy*>(this), const_cast<RepositoryProxy*>(this)->m_statusFiles);
 		}
 

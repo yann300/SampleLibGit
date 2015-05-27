@@ -73,7 +73,6 @@ namespace Git
 		void remoteFinishIndexing();
 		void remoteUpdateTips(Git::Repository::UpdateTips _updatetips, const QString &_from, const QString &_to);
 		void updateFileStatus();
-		void changeRepository();
 
 	protected:
 		QList<StatusFile*> m_statusFiles;

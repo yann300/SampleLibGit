@@ -3,6 +3,7 @@
 // Email : ali.mashatan@gmail.com
 // Author: Ali Mashatan
 
+#include <QFileInfo>
 #include <QDateTime>
 #include <QDebug>
 #include <git2.h>
@@ -60,10 +61,11 @@ bool Repository::open(const QString &_repoPath)
 	if (error = git_repository_open(&m_repositoryPrivate->m_ptrRepo, _repoPath.toStdString().c_str()) != 0)
 	{
 		signalError(error);
+		getStausFiles();
 		return false;
 	}
 	m_repoPath = _repoPath;
-	emit changeRepository();
+	getStausFiles();
 	return true;
 }
 
@@ -124,7 +126,7 @@ bool Repository::clone(const QString &_repoPath)
 	close();
 	m_repositoryPrivate->m_ptrRepo = ptrRepo;
 	m_repoPath = _repoPath;
-	emit changeRepository();
+	getStausFiles();
 	return true;
 }
 
@@ -203,6 +205,29 @@ bool Repository::commit(const QString &_commitMessage)
 	Q_ASSERT(m_email.isEmpty() == false);
 	Q_ASSERT(_commitMessage.isEmpty() == false);
 
+	if (!m_repositoryPrivate->m_ptrRepo)
+	{
+		emit errorMessage(-1, tr("Reposetry is not opened"), QString());
+		return false;
+	}
+	foreach(StatusFile * statusFile, m_statusFiles)
+	{
+		if (statusFile->addToggle() )
+		{
+			addFilenameToRepo(statusFile->newPath());
+		}
+		if (statusFile->statusType() == StatusFile::Modified )
+		{
+			addFilenameToRepo(statusFile->oldPath());
+		}
+		if (statusFile->removeToggle() ||
+			statusFile->statusType() == StatusFile::Deleted
+			)
+		{
+			removeFilenameFromRepo(statusFile->oldPath());
+		}
+	}
+
 	//ToDo: modification UTC
 	git_signature_new((git_signature **)&author,
 					  m_author.toStdString().c_str(), m_email.toStdString().c_str(), QDateTime::currentDateTime().toTime_t(), 60);
@@ -239,7 +264,7 @@ bool Repository::commit(const QString &_commitMessage)
 	git_tree_free(tree);
 	git_signature_free(author);
 	qDebug() << "finish commit";
-	emit updateFileStatus();
+	getStausFiles();
 	return true;
 }
 
@@ -322,12 +347,18 @@ bool Repository::fetch()
 	}
 
 	git_remote_free(remote);
-	emit changeRepository();
+	getStausFiles();
 	return true;
 }
 
 bool Repository::push()
 {
+	if (!m_repositoryPrivate->m_ptrRepo)
+	{
+		emit errorMessage(-1, tr("Reposetry is not opened"), QString());
+		return false;
+	}
+
 	RepositoryPrivate::CommonData commonData = { { 0 } };
 	commonData.ptrRepo = this;
 	commonData.ptrPrivateRepo = m_repositoryPrivate;
@@ -439,7 +470,7 @@ bool Repository::merge()
 	{
 		git_annotated_commit_free(commit);
 	}
-	emit changeRepository();
+	getStausFiles();
 	return true;
 }
 
@@ -486,11 +517,10 @@ bool Repository::getStausFiles()
 	}
 	size_t statusCount = git_status_list_entrycount(status);
 	qDebug() << "C counter : " << statusCount;
-	for (int i = 0; i < statusCount; i++) {
-
+	for (int i = 0; i < statusCount; i++)
+	{
 		const git_status_entry *s = git_status_byindex(status, i);
 		StatusFile::StausType statusType = StatusFile::Unknown;
-
 		switch (s->status)
 		{
 		case GIT_STATUS_CURRENT:
@@ -500,19 +530,19 @@ bool Repository::getStausFiles()
 			statusType = StatusFile::Untracked;
 		break;
 		case GIT_STATUS_WT_DELETED:
-			statusType = StatusFile::WTDeleted;
+		case GIT_STATUS_INDEX_DELETED:
+			statusType = StatusFile::Deleted;
 		break;
 		case GIT_STATUS_INDEX_NEW:
 			statusType = StatusFile::New;
 		break;
 		case GIT_STATUS_INDEX_MODIFIED:
+		case GIT_STATUS_WT_MODIFIED:
 			statusType = StatusFile::Modified;
 		break;
-		case GIT_STATUS_INDEX_DELETED:
-			statusType = StatusFile::Deleted;
-		break;
-		case GIT_STATUS_INDEX_RENAMED:
-			statusType = StatusFile::Renamed;
+        case GIT_STATUS_WT_RENAMED:
+        case GIT_STATUS_INDEX_RENAMED:
+            statusType = StatusFile::Renamed;
 		break;
 		case GIT_STATUS_INDEX_TYPECHANGE:
 			statusType = StatusFile::TypeChange;
@@ -527,17 +557,19 @@ bool Repository::getStausFiles()
 			if ( newPath )
 			{
 				const char * oldPath = s->head_to_index->old_file.path;
+				QString qnewPath = QString(newPath);
 				if (oldPath )
 				{
+					QString qoldPath = QString(oldPath);
 					m_statusFiles << new StatusFile(this,
-												QString(oldPath),
-												QString(newPath),
+												qoldPath,
+												qnewPath,
 												statusType);
 				}
 				else
 					m_statusFiles << new StatusFile(this,
-													QString(newPath),
-													QString(newPath),
+													qnewPath,
+													qnewPath,
 													statusType);
 			}
 		} else if (	s->index_to_workdir )
@@ -547,7 +579,7 @@ bool Repository::getStausFiles()
 										QString(s->index_to_workdir->old_file.path),
 										statusType);
 		}
-	}
+	}//for
 
 	git_status_list_free(status);
 	emit updateFileStatus();

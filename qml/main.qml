@@ -10,12 +10,12 @@ import Git.Repository 1.0
 import Git.StatusFile 1.0
 
 Rectangle {
-	width: 600;
+	width: 900;
 	height: 400;
 
 	Component.onCompleted:
 	{
-		console.log("Complete");
+		//console.log("Complete");
 	}
 
 	Repository
@@ -25,26 +25,18 @@ Rectangle {
 		{
 			console.log("error: ", _error, "  message:", _message);
 		}
-		onChangeRepository:
-		{
-			gitrepo.getStausFiles();
-		}
 		onUpdateFileStatus:
 		{
 			var functions = gitrepo.statusFiles;
-			filesStatusList.model.clear();
+			filesStatusList.model = ListModel;
+			statusModel.clear();
+			console.log("functions.length: ", functions.length);
 			for (var f = 0; f < functions.length; f++) {
 				var statusStr="unknown";
-				switch(functions[f].type)
+				switch(functions[f].status)
 				{
 				case StatusFile.Current:
 					statusStr="Current";
-					break;
-				case StatusFile.WTNew:
-					statusStr="WT New";
-					break;
-				case StatusFile.WTDeleted:
-					statusStr="WT Deleted";
 					break;
 				case StatusFile.New:
 					statusStr="New";
@@ -68,10 +60,19 @@ Rectangle {
 					statusStr="Unknown";
 					break;
 				}
-				filesStatusList.model.append({ file: functions[f].newPath, type: statusStr });
+				statusModel.append({ file: functions[f].newPath,
+												 status: statusStr,
+												 statusID: functions[f].status,
+												 addToggle: functions[f].addToggle,
+												 removeToggle: functions[f].removeToggle });
 			}
+			filesStatusList.model = statusModel;
 		}
 	}
+	ListModel {
+		id: statusModel
+	}
+
 	ColumnLayout {
 		RowLayout {
 			Text{
@@ -80,7 +81,7 @@ Rectangle {
 			}
 			TextInput{
 				id: urlInput
-				text: "https://github.com/Mashatan/CustomCombobox"
+				text: "https://github.com/Mashatan/test.git"
 			}
 		}
 		RowLayout {
@@ -137,27 +138,82 @@ Rectangle {
 					gitrepo.commit(commitInput.text);
 				}
 			}
+			Button{
+				text: "Push"
+				onClicked: {
+					gitrepo.setURL(urlInput.text);
+					gitrepo.push();
+				}
+			}
 		}
 		TableView {
 			id: filesStatusList
 			height: 200
 			implicitHeight: 0
-			width: 400
-			model: ListModel{}
+			implicitWidth: 500
+			width: 900
 
 			TableViewColumn {
 				role: "file"
-				title: "file"
+				title: "File"
 				width: 100
 			}
 			TableViewColumn {
-				role: "type"
-				title: "type"
+				role: "status"
+				title: "Status"
 				width: 100
 			}
+			TableViewColumn {
+				role: "addToggle"
+				title: "Add"
+				width: 50
+				delegate:
+					CheckBox {
+						id: addCheckboxDelegate
+						anchors.fill: parent
+						checked: styleData.value
+						Component.onCompleted: {
+							 console.log( "Add Status ID: ",filesStatusList.model.get(styleData.row).statusID);
+							 if (filesStatusList.model.get(styleData.row).statusID === StatusFile.Untracked)
+							 {
+								 addCheckboxDelegate.visible = true;
+							 } else {
+								 addCheckboxDelegate.visible = false;
+							 }
+						  }
+						 onCheckedChanged: {
+							 gitrepo.setAddToggle(filesStatusList.model.get(styleData.row).file, checked);
+
+						 }
+					 }
+			}
+			TableViewColumn {
+				role: "removeToggle"
+				title: "Remove"
+				width: 50
+				delegate:
+					CheckBox {
+						 anchors.fill: parent
+						 checked: styleData.value
+						 Component.onCompleted: {
+							 console.log( "Remove Status ID: ",filesStatusList.model.get(styleData.row).statusID);
+							 if (filesStatusList.model.get(styleData.row).statusID === StatusFile.Current||
+								filesStatusList.model.get(styleData.row).statusID === StatusFile.Modified )
+							 {
+								 this.visible = true;
+							 } else {
+								 this.visible = false;
+
+							 }
+						 }
+
+						 onCheckedChanged: {
+							 gitrepo.setRemoveToggle(filesStatusList.model.get(styleData.row).file, checked);
+
+						 }
+					 }
+			}
 		} //Table View
-	}
-
-
+	}// ColumnLayout
 
 }
