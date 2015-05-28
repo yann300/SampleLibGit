@@ -55,6 +55,16 @@ Repository::~Repository()
 	delete m_repositoryPrivate;
 }
 
+QString Repository::getUsername()
+{
+	return m_username;
+}
+
+QString Repository::getPassword()
+{
+	return m_password;
+}
+
 bool Repository::open(const QString &_repoPath)
 {
 	int error;
@@ -111,10 +121,8 @@ bool Repository::clone(const QString &_repoPath)
 	cloneOptions.remote_callbacks.credentials = [](git_cred **out, const char * url, const char * username_from_url, unsigned int allowed_types, void * payload) -> int
 	{
 		RepositoryPrivate::CommonData *commonData = (RepositoryPrivate::CommonData*)payload;
-		QString username;
-		QString password;
-		emit commonData->ptrRepo->remoteCredential(username, password);
-		return git_cred_userpass_plaintext_new(out, username.toStdString().c_str(), password.toStdString().c_str());
+		emit commonData->ptrRepo->remoteCredential();
+		return git_cred_userpass_plaintext_new(out, commonData->ptrRepo->getUsername().toStdString().c_str(), commonData->ptrRepo->getPassword().toStdString().c_str());
 	};
 	cloneOptions.remote_callbacks.payload = &commonData;
 	git_repository * ptrRepo;
@@ -212,7 +220,7 @@ bool Repository::commit(const QString &_commitMessage)
 	}
 	foreach(StatusFile * statusFile, m_statusFiles)
 	{
-		if (statusFile->addToggle() )
+		if (statusFile->addToggle() && statusFile->statusType() == StatusFile::Untracked  )
 		{
 			addFilenameToRepo(statusFile->newPath());
 		}
@@ -220,9 +228,9 @@ bool Repository::commit(const QString &_commitMessage)
 		{
 			addFilenameToRepo(statusFile->oldPath());
 		}
-		if (statusFile->removeToggle() ||
-			statusFile->statusType() == StatusFile::Deleted
-			)
+		if ((statusFile->removeToggle() && (statusFile->statusType() == StatusFile::Current ||
+											statusFile->statusType() == StatusFile::Modified))
+			|| statusFile->statusType() == StatusFile::Deleted)
 		{
 			removeFilenameFromRepo(statusFile->oldPath());
 		}
@@ -263,7 +271,7 @@ bool Repository::commit(const QString &_commitMessage)
 
 	git_tree_free(tree);
 	git_signature_free(author);
-	qDebug() << "finish commit";
+	//qDebug() << "finish commit";
 	getStausFiles();
 	return true;
 }
@@ -315,10 +323,8 @@ bool Repository::fetch()
 	callbacks.credentials = [](git_cred **out, const char * url, const char * username_from_url, unsigned int allowed_types, void * payload) -> int
 	{
 		RepositoryPrivate::CommonData *commonData = (RepositoryPrivate::CommonData*)payload;
-		QString username;
-		QString password;
-		emit commonData->ptrRepo->remoteCredential(username, password);
-		return git_cred_userpass_plaintext_new(out, username.toStdString().c_str(), password.toStdString().c_str());
+		emit commonData->ptrRepo->remoteCredential();
+		return git_cred_userpass_plaintext_new(out, commonData->ptrRepo->getUsername().toStdString().c_str(), commonData->ptrRepo->getPassword().toStdString().c_str());
 	};
 
 	callbacks.payload = &commonData;
@@ -402,10 +408,8 @@ bool Repository::push()
 	callbacks.credentials = [](git_cred **out, const char * url, const char * username_from_url, unsigned int allowed_types, void * payload) -> int
 	{
 		RepositoryPrivate::CommonData *commonData = (RepositoryPrivate::CommonData*)payload;
-		QString username;
-		QString password;
-		emit commonData->ptrRepo->remoteCredential(username, password);
-		return git_cred_userpass_plaintext_new(out, username.toStdString().c_str(), password.toStdString().c_str());
+		emit commonData->ptrRepo->remoteCredential();
+		return git_cred_userpass_plaintext_new(out, commonData->ptrRepo->getUsername().toStdString().c_str(), commonData->ptrRepo->getPassword().toStdString().c_str());
 	};
 	callbacks.payload = &commonData;
 	git_remote_set_callbacks(remote, &callbacks);
@@ -516,7 +520,7 @@ bool Repository::getStausFiles()
 		return false;
 	}
 	size_t statusCount = git_status_list_entrycount(status);
-	qDebug() << "C counter : " << statusCount;
+	//qDebug() << "C counter : " << statusCount;
 	for (int i = 0; i < statusCount; i++)
 	{
 		const git_status_entry *s = git_status_byindex(status, i);
@@ -604,6 +608,16 @@ QString Repository::getRespPath()
 QString Repository::getRespURL()
 {
 	return m_repoURL;
+}
+
+void Repository::setUsername(const QString &_value)
+{
+	m_username = _value;
+}
+
+void Repository::setPassword(const QString &_value)
+{
+	m_password = _value;
 }
 
 void Repository::setRepoURL(const QString &_value)

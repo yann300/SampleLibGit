@@ -18,6 +18,15 @@ namespace Git
 	public:
 		RepositoryProxy(QObject* _parent = NULL);
 		virtual ~RepositoryProxy();
+
+		Q_INVOKABLE void setUsername(QString const& _username)
+		{
+			Repository::setUsername(_username);
+		}
+		Q_INVOKABLE void setPassword(QString const& _password)
+		{
+			Repository::setPassword(_password);
+		}
 		Q_INVOKABLE void setEmail(QString const& _email)
 		{
 			Repository::setEmail(_email);

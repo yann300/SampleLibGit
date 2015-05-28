@@ -50,10 +50,7 @@ namespace Git
 		bool addToggle() const { return m_addToggle; }
 		void setAddToggle(bool _toggle) { m_addToggle = _toggle;}
 		bool removeToggle() const { return m_removeToggle; }
-		void setRemoveToggle(bool _toggle) {
-			m_removeToggle = _toggle;
-			qDebug() << "Remove Toggle";
-		}
+		void setRemoveToggle(bool _toggle) { m_removeToggle = _toggle;}
 	private:
 		QString m_oldPath;
 		QString m_newPath;

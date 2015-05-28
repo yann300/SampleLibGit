@@ -25,14 +25,20 @@ namespace Git
 		Repository(QObject* _parent = NULL);
 		virtual ~Repository();
 		/// Return email of the user
+		QString getUsername();
+		/// Return email of the user
+		QString getPassword();
+		/// Return email of the user
 		QString getEmail();
-		/// Return author 
+		/// Return author
 		QString getAuthor();
 		/// Return repository path
 		QString getRespPath();
 		/// Return repository URL
 		QString getRespURL();
 
+		void setUsername(const QString &_value);
+		void setPassword(const QString &_value);
 		void setEmail(const QString &_value);
 		void setAuthor(const QString &_value);
 		void setRepoURL(const QString &_value);
@@ -63,7 +69,7 @@ namespace Git
 
 	signals:
 		void errorMessage(qint32 _error, const QString &_message, const QString &_hint);
-		void remoteCredential(QString& _username, QString& _password);
+		void remoteCredential();
 		void remoteTransfer(quint32 _totalObjects,
 			quint32 _indexedObjects,
 			quint32 _receivedObjects,
@@ -82,6 +88,8 @@ namespace Git
 		class RepositoryPrivate;
 		RepositoryPrivate *m_repositoryPrivate;
 		
+		QString m_username;
+		QString m_password;
 		QString m_email;
 		QString m_author;
 		QString m_repoPath;

@@ -13,11 +13,6 @@ Rectangle {
 	width: 900;
 	height: 400;
 
-	Component.onCompleted:
-	{
-		//console.log("Complete");
-	}
-
 	Repository
 	{
 		id: gitrepo
@@ -25,12 +20,20 @@ Rectangle {
 		{
 			console.log("error: ", _error, "  message:", _message);
 		}
+		onRemoteCredential:
+		{
+			gitrepo.setUsername(usernameInput.text);
+			gitrepo.setPassword(passwordInput.text);
+		}
+		onRemoteProgress:
+		{
+			console.log("Remote message:", _message);
+		}
+
 		onUpdateFileStatus:
 		{
 			var functions = gitrepo.statusFiles;
-			filesStatusList.model = ListModel;
 			statusModel.clear();
-			console.log("functions.length: ", functions.length);
 			for (var f = 0; f < functions.length; f++) {
 				var statusStr="unknown";
 				switch(functions[f].status)
@@ -60,13 +63,13 @@ Rectangle {
 					statusStr="Unknown";
 					break;
 				}
+				//console.log("Addtoggle:", functions[f].addToggle);
 				statusModel.append({ file: functions[f].newPath,
 												 status: statusStr,
 												 statusID: functions[f].status,
 												 addToggle: functions[f].addToggle,
 												 removeToggle: functions[f].removeToggle });
 			}
-			filesStatusList.model = statusModel;
 		}
 	}
 	ListModel {
@@ -101,6 +104,26 @@ Rectangle {
 			}
 			TextInput{
 				id: commitInput
+				text: "test"
+			}
+		}
+		RowLayout {
+			Text{
+				id: usernameText
+				text: "Username:"
+			}
+			TextInput{
+				id: usernameInput
+				text: "test"
+			}
+		}
+		RowLayout {
+			Text{
+				id: passwordText
+				text: "Password:"
+			}
+			TextInput{
+				id: passwordInput
 				text: "test"
 			}
 		}
@@ -152,6 +175,7 @@ Rectangle {
 			implicitHeight: 0
 			implicitWidth: 500
 			width: 900
+			model: statusModel
 
 			TableViewColumn {
 				role: "file"
@@ -169,10 +193,9 @@ Rectangle {
 				width: 50
 				delegate:
 					CheckBox {
-						id: addCheckboxDelegate
 						anchors.fill: parent
 						checked: styleData.value
-						Component.onCompleted: {
+						/*Component.onCompleted: {
 							 console.log( "Add Status ID: ",filesStatusList.model.get(styleData.row).statusID);
 							 if (filesStatusList.model.get(styleData.row).statusID === StatusFile.Untracked)
 							 {
@@ -180,10 +203,9 @@ Rectangle {
 							 } else {
 								 addCheckboxDelegate.visible = false;
 							 }
-						  }
+						  }*/
 						 onCheckedChanged: {
 							 gitrepo.setAddToggle(filesStatusList.model.get(styleData.row).file, checked);
-
 						 }
 					 }
 			}
@@ -195,7 +217,7 @@ Rectangle {
 					CheckBox {
 						 anchors.fill: parent
 						 checked: styleData.value
-						 Component.onCompleted: {
+						 /*Component.onCompleted: {
 							 console.log( "Remove Status ID: ",filesStatusList.model.get(styleData.row).statusID);
 							 if (filesStatusList.model.get(styleData.row).statusID === StatusFile.Current||
 								filesStatusList.model.get(styleData.row).statusID === StatusFile.Modified )
@@ -205,8 +227,7 @@ Rectangle {
 								 this.visible = false;
 
 							 }
-						 }
-
+						 }*/
 						 onCheckedChanged: {
 							 gitrepo.setRemoveToggle(filesStatusList.model.get(styleData.row).file, checked);
 
