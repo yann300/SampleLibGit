@@ -10,13 +10,6 @@ import Git.Repository 1.0
 import Git.StatusFile 1.0
 
 
-
-
-
-
-
-
-
 Rectangle {
 	width: 900;
 	height: 400;
