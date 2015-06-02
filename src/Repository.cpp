@@ -92,7 +92,7 @@ void Repository::close()
 
 bool Repository::clone(const QString &_repoPath)
 {
-	RepositoryPrivate::CommonData commonData = { { 0 } };
+	RepositoryPrivate::CommonData commonData;// = { { 0 } };
 	commonData.ptrRepo = this;
 	commonData.ptrPrivateRepo = m_repositoryPrivate;
 	git_clone_options cloneOptions = GIT_CLONE_OPTIONS_INIT;
@@ -138,7 +138,7 @@ bool Repository::clone(const QString &_repoPath)
 	return true;
 }
 
-void Repository::signalError(qint32 _error, QString &_hint /*= QString()*/)
+void Repository::signalError(qint32 _error, const QString &_hint /*= QString()*/)
 {
 	const git_error *err = giterr_last();
 	if (err)
@@ -279,7 +279,7 @@ bool Repository::commit(const QString &_commitMessage)
 
 bool Repository::fetch()
 {
-	RepositoryPrivate::CommonData commonData = { { 0 } };
+	RepositoryPrivate::CommonData commonData;// = { { 0 } };
 	git_remote *remote = NULL;
 	const git_transfer_progress *stats;
 	git_remote_callbacks callbacks = GIT_REMOTE_CALLBACKS_INIT;
@@ -365,7 +365,7 @@ bool Repository::push()
 		return false;
 	}
 
-	RepositoryPrivate::CommonData commonData = { { 0 } };
+	RepositoryPrivate::CommonData commonData;// = { { 0 } };
 	commonData.ptrRepo = this;
 	commonData.ptrPrivateRepo = m_repositoryPrivate;
 	git_remote *remote = NULL;
@@ -544,9 +544,9 @@ bool Repository::getStausFiles()
 		case GIT_STATUS_WT_MODIFIED:
 			statusType = StatusFile::Modified;
 		break;
-        case GIT_STATUS_WT_RENAMED:
-        case GIT_STATUS_INDEX_RENAMED:
-            statusType = StatusFile::Renamed;
+		case GIT_STATUS_WT_RENAMED:
+		case GIT_STATUS_INDEX_RENAMED:
+			statusType = StatusFile::Renamed;
 		break;
 		case GIT_STATUS_INDEX_TYPECHANGE:
 			statusType = StatusFile::TypeChange;

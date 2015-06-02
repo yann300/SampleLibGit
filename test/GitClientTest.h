@@ -33,21 +33,21 @@ private slots:
 		repository.setRepoURL(QString("https://github.com/Mashatan/CustomCombobox"));
 		repository.setAuthor("Ali Mashatan");
 		repository.setEmail("ali@ethdev.com");
-		
+
 		system("rmdir /s /q c:\\temp\\test");
 		QVERIFY(repository.clone(QString("c:\\temp\\test")));
 
 		//system("echo \"this is a test\" >> c:\\temp\\test\\gpl01.txt");
-		
+
 		//QVERIFY(repository.AddFilenameToRepo(QString("gpl01.txt")));
 		//QVERIFY(repository.Commit(QString("Adding gpl01")));
-		
+
 		//QVERIFY(repository.Push());
 		//QVERIFY(gitClient.Revert());
 		//QVERIFY(gitClient.Fetch());
 
 		repository.close();
-	  
+
 	}
 
 private slots:
@@ -55,7 +55,7 @@ private slots:
 	{
 		printf("Error: [%d] %s, hint: %s\n", error, message.toStdString().c_str(), hint.toStdString().c_str());
 	}
-	void doRemoteCredential(QString& username, QString& password) 
+	void doRemoteCredential(QString& username, QString& password)
 	{
 	}
 	void doRemoteTransfer(quint32 totalObjects,
@@ -75,7 +75,7 @@ private slots:
 	}
 	void doRemoteUpdateTips(Git::Repository::UpdateTips updateTips, const QString &from, const QString &to)
 	{
-		printf("%s	%s ... %s", updateTips == Git::Repository::upNew ? "New":"Update", from.toStdString(), to.toStdString());
+		printf("%s	%s ... %s", updateTips == Git::Repository::upNew ? "New":"Update", from.toStdString().c_str(), to.toStdString().c_str());
 	}
 private:
 };

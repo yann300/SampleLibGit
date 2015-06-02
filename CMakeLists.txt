@@ -2,9 +2,13 @@
 # Author: Ali Mashatan
 # Email : ali.mashatan@gmail.com
 
-cmake_minimum_required(VERSION 3.0.0 FATAL_ERROR)
+cmake_minimum_required(VERSION 2.8 FATAL_ERROR)
 
 project(SampleLibGit)
+
+if(UNIX)
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -std=c++11")
+endif()
 
 find_package(Qt5Core REQUIRED )
 find_package(Qt5 COMPONENTS Widgets Test Quick Qml Declarative)
@@ -52,4 +56,8 @@ IF(WIN32) # Check if we are on Windows
 		set_target_properties(SampleLibGit PROPERTIES LINK_FLAGS_RELEASE "/SUBSYSTEM:WINDOWS")
 		set_target_properties(SampleLibGit PROPERTIES LINK_FLAGS_DEBUG "/SUBSYSTEM:CONSOLE")
 	endif()
+endif()
+
+If(UNIX)
+	target_link_libraries(SampleLibGit "${CMAKE_CURRENT_SOURCE_DIR}/libgit/unix/libgit2.so")
 endif()

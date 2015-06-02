@@ -18,7 +18,7 @@ namespace Git
 	public:
 		enum UpdateTips
 		{
-			upNew, 
+			upNew,
 			upUpdate,
 		};
 
@@ -84,10 +84,10 @@ namespace Git
 		QList<StatusFile*> m_statusFiles;
 
 	private:
-		
+
 		class RepositoryPrivate;
 		RepositoryPrivate *m_repositoryPrivate;
-		
+
 		QString m_username;
 		QString m_password;
 		QString m_email;
@@ -95,7 +95,7 @@ namespace Git
 		QString m_repoPath;
 		QString m_repoURL;
 
-		void signalError(qint32 _error, QString &_hint = QString());
+		void signalError(qint32 _error, const QString &_hint = QString());
 	};
 }
 Q_DECLARE_METATYPE(Git::Repository::UpdateTips)

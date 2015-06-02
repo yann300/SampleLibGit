@@ -84,7 +84,7 @@ Rectangle {
 			}
 			TextInput{
 				id: urlInput
-				text: "https://github.com/Mashatan/test.git"
+				text: "https://github.com/yann300/SampleLibGit"
 			}
 		}
 		RowLayout {
@@ -94,7 +94,7 @@ Rectangle {
 			}
 			TextInput{
 				id: pathInput
-				text: "c:/temp/test"
+				text: "/home/yann/Ethereum/Projects/aliSampleLibGit/SampleLibGit"
 			}
 		}
 		RowLayout {
@@ -114,7 +114,7 @@ Rectangle {
 			}
 			TextInput{
 				id: usernameInput
-				text: "test"
+				text: "yann300"
 			}
 		}
 		RowLayout {
@@ -125,6 +125,7 @@ Rectangle {
 			TextInput{
 				id: passwordInput
 				text: "test"
+				echoMode: TextInput.Password
 			}
 		}
 		RowLayout {
