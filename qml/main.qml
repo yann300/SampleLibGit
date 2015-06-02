@@ -13,6 +13,10 @@ import Git.StatusFile 1.0
 
 
 
+
+
+
+
 Rectangle {
 	width: 900;
 	height: 400;
@@ -121,6 +125,18 @@ Rectangle {
 				text: "yann300"
 			}
 		}
+
+		RowLayout {
+			Text{
+				id: mailText
+				text: "Mail:"
+			}
+			TextInput{
+				id: mailInput
+				text: "yann.levreau@gmail.com"
+			}
+		}
+
 		RowLayout {
 			Text{
 				id: passwordText
@@ -161,8 +177,8 @@ Rectangle {
 			Button{
 				text: "Commit"
 				onClicked: {
-					gitrepo.setAuthor("Ali");
-					gitrepo.setEmail("Ali@ethdev.com");
+					gitrepo.setAuthor(usernameInput.text);
+					gitrepo.setEmail(mailInput.text);
 					gitrepo.commit(commitInput.text);
 				}
 			}
