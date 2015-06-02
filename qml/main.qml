@@ -8,8 +8,7 @@ import QtQuick.Layouts 1.1
 import QtQuick.Controls.Styles 1.2
 import Git.Repository 1.0
 import Git.StatusFile 1.0
-
-
+//test
 
 Rectangle {
 	width: 900;

@@ -435,7 +435,7 @@ bool Repository::push()
 
 	git_remote_disconnect(remote);
 
-	if (error = git_remote_update_tips(remote, NULL))
+	if (error = git_remote_update_tips(remote, ""))
 	{
 		signalError(error);
 		return false;
